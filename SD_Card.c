@@ -152,7 +152,7 @@ void Sd_Init(void)
 	Time_Delay_MS(500);
 
 	/**
-	 *  There's a problem in the MOSI line that needs its disconnect and reconnect again
+	 *  There's a problem in the MOSI line that needs its disconnect and reconnect again at first sight it's HW issue
 	 *
 	 *  Both SD_INIT_ENTER_SPI_MODE implementation have same behavior
 	 */

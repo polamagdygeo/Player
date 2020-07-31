@@ -92,7 +92,7 @@ static void	FAT32_ParseVolumeBootArea(void)
     {
         if(Sd_ReadBlock((idx)*SD_BLOCK_SIZE,sector_buffer_tmp) == 1)
         {
-            /*Searching for the OEM is not enough also getting first sector not always contain BRB info*/
+            /*Searching for the OEM is not enough also getting first sector not always contain BPB (BIOS parameter block) info*/
             if(strcmp((const char*)(sector_buffer_tmp+3),(const char*)"MSDOS5.0") == 0)
             {
                 volume_map.boot_area_start_sector = idx;
