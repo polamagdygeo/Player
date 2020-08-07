@@ -22,8 +22,8 @@
 
 int main(void)
 {
-    tDirectoryEntry *directory_array = 0;
-    uint8_t size = 0;
+    char *files_name_arr[10] = {0};
+    uint8_t count = 0;
     uint8_t buffer[512];
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
@@ -63,9 +63,9 @@ int main(void)
     Sd_Init();
     FAT32_Init();
 
-    FAT32_SearchFilesWithExtension("TXT",&directory_array,&size);
+    FAT32_ListFiles(files_name_arr,&count);
 
-    while(FAT32_ReadFileAsBlocks(&directory_array[0],&buffer) == 0)
+    while(FAT32_ReadFileAsBlocks(files_name_arr[0],&buffer) == 0)
     {
         buffer[0] = 0;
     }

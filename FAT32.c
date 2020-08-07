@@ -52,6 +52,28 @@ typedef enum{
 }tFileStatus;
 
 typedef struct{
+	uint8_t file_name[8];
+	uint8_t ext[3];
+	uint8_t attr;
+	uint8_t file_case;
+	uint8_t creation_time_sec;
+	uint8_t creation_time[2];
+	uint8_t creation_date[2];
+	uint8_t last_access_date[2];
+	uint8_t reserved[2];
+	uint8_t last_mod_time[2];
+	uint8_t last_mod_date[2];
+	uint16_t starting_cluster;
+	uint32_t file_size;
+}tFatDirEntry;	/*in FAT32 standard directory entries are part of the data section in volume map*/
+
+typedef struct{
+	tFatDirEntry dir_info;
+	tList *child_list;
+	tDir *parent;
+}tDir;
+
+typedef struct{
 	uint32_t fat_table_sectors_no;
 	uint32_t root_dir_starting_cluster_idx;
 	uint32_t hidden_sectors_no;
@@ -60,7 +82,7 @@ typedef struct{
 	uint16_t reserved_area_sectors_no;
 	uint8_t sector_per_cluster;
 	uint8_t fat_table_entries_no;
-}tBootArea;
+}tBPB_Info;
 
 /*in sector unit*/
 typedef struct{
@@ -69,21 +91,32 @@ typedef struct{
 	uint64_t data_start_sector;
 }tVolume_Map;
 
-static tBootArea volume_boot_area;
+static tBPB_Info bpb_info;
 static tVolume_Map volume_map;
-static tList *files_list_ptr;
+static tDir root_dir;
+static tDir *active_dir_ptr = &root_dir;
 
-static void	FAT32_ParseVolumeBootArea(void);
+static void	FAT32_ExtractBPBInfo(void);
 static void	FAT32_CalcVolumeMapBoundries(void);
 static uint32_t FAT32_CalcFileSectorsNo(uint32_t File_Size_In_Bytes);
 static uint32_t FAT32_GetClusterFirstSectorId(uint32_t cluster_idx);
 static void FAT32_GetClusterAssocFatSectorAndOffset(uint32_t cluster_idx,uint32_t* FAT_Sector,uint32_t* FAT_Offset);
 static uint32_t FAT32_GetNextChainCluster(uint32_t cluster_idx);
-static void FAT32_AppendFileInfoToList(tDirectoryEntry* s);
-static void FAT32_ScanDirectory(uint32_t dir_first_cluster_idx);
-static tDirectoryEntry* FAT32_GetSearchFileWithIndex(uint8_t index);
+static void FAT32_AppendFileToDirChildList(tFatDirEntry* parent,tFatDirEntry* s);
+static void FAT32_ScanDir(uint32_t dir_first_cluster_idx);
+static tFatDirEntry* FAT32_GetSearchFileWithIndex(uint8_t index);
+static uint8_t FAT32_CompareDirName(void* ptr_dir,void *dir_name,void** dir);
+static uint8_t FAT32_AppendNameIfDir(void* ptr_dir,void *count,void** dir_names_arr);
+static uint8_t FAT32_AppendNameIfFile(void* ptr_dir,void *count,void** file_names_arr);
+static void FAT32_GetFileWithName(char* file_name,tDir **dir);
+static uint8_t FAT32_CompareFileName(void* ptr_dir,void *file_name,void** dir);
 
-static void	FAT32_ParseVolumeBootArea(void)
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static void	FAT32_ExtractBPBInfo(void)
 {
 	uint8_t sector_buffer_tmp[SD_BLOCK_SIZE];
     uint32_t idx;
@@ -96,14 +129,14 @@ static void	FAT32_ParseVolumeBootArea(void)
             if(strcmp((const char*)(sector_buffer_tmp+3),(const char*)"MSDOS5.0") == 0)
             {
                 volume_map.boot_area_start_sector = idx;
-                volume_boot_area.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
-                volume_boot_area.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
-                volume_boot_area.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
-                volume_boot_area.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
-                volume_boot_area.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
-                volume_boot_area.sector_per_cluster = sector_buffer_tmp[13];
-                volume_boot_area.fat_table_entries_no = sector_buffer_tmp[16];
-                volume_boot_area.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
+                bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
+                bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
+                bpb_info.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
+                bpb_info.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
+                bpb_info.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
+                bpb_info.sector_per_cluster = sector_buffer_tmp[13];
+                bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
+                bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
                 break;
             }
 
@@ -112,44 +145,67 @@ static void	FAT32_ParseVolumeBootArea(void)
     }
 }
 
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 static void	FAT32_CalcVolumeMapBoundries(void)
 {
 	volume_map.fat_table_start_sector = volume_map.boot_area_start_sector +
-	        volume_boot_area.reserved_area_sectors_no;
+	        bpb_info.reserved_area_sectors_no;
 
 	volume_map.data_start_sector = volume_map.fat_table_start_sector +
-			(volume_boot_area.fat_table_sectors_no*volume_boot_area.fat_table_entries_no);
+			(bpb_info.fat_table_sectors_no*bpb_info.fat_table_entries_no);
 }
 
-
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 static uint32_t FAT32_CalcFileSectorsNo(uint32_t File_Size_In_Bytes)
 {
-	return (File_Size_In_Bytes / (volume_boot_area.byts_per_sector)) + 1;
+	return (File_Size_In_Bytes / (bpb_info.byts_per_sector)) + 1;
 
 }
 
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 static uint32_t FAT32_GetClusterFirstSectorId(uint32_t cluster_idx)
 {
 	uint32_t Cluster_First_SectorID = 0;
 
 	if(cluster_idx >= 2)
 	{
-		Cluster_First_SectorID = volume_map.data_start_sector + ((cluster_idx-2)*volume_boot_area.sector_per_cluster);
+		Cluster_First_SectorID = volume_map.data_start_sector + ((cluster_idx-2)*bpb_info.sector_per_cluster);
 	}
 
 	return Cluster_First_SectorID;
 }
 
-
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 static void FAT32_GetClusterAssocFatSectorAndOffset(uint32_t cluster_idx,uint32_t* FAT_Sector,uint32_t* FAT_Offset)
 {
 	uint32_t FAT_Id = cluster_idx;
-	uint32_t FATperSector = (volume_boot_area.byts_per_sector) / sizeof(tFATEntry);
+	uint32_t FATperSector = (bpb_info.byts_per_sector) / sizeof(tFATEntry);
 
 	*FAT_Sector = volume_map.fat_table_start_sector + (FAT_Id/FATperSector);
 	*FAT_Offset = FAT_Id % FATperSector;
 }
 
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 static uint32_t FAT32_GetNextChainCluster(uint32_t cluster_idx)
 {
 	uint8_t sector_buffer_tmp[SD_BLOCK_SIZE];
@@ -171,26 +227,48 @@ static uint32_t FAT32_GetNextChainCluster(uint32_t cluster_idx)
 	return next_cluster;
 }
 
-
-static void FAT32_AppendFileInfoToList(tDirectoryEntry* s)
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static void FAT32_AppendFileToDirChildList(tDir* parent,tFatDirEntry* s)
 {
-	tDirectoryEntry *pS = malloc(sizeof(tDirectoryEntry));
+	tDir *pS = calloc(1,sizeof(tDir));
 
-	memcpy(pS,s,sizeof(tDirectoryEntry));
+	if(pS)
+	{
+		memcpy(&pS->dir_info,s,sizeof(tFatDirEntry));
 
-	List_Append(files_list_ptr,pS);
+		pS->parent = parent;
+
+		List_Append(parent->child_list,pS);
+	}
 }
 
-static void FAT32_ScanDirectory(uint32_t dir_first_cluster_idx)
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static void FAT32_ScanDir(tDir *parent_dir)
 {
-	const uint8_t root_entries_per_sector = volume_boot_area.byts_per_sector / sizeof(tDirectoryEntry);
+	const uint8_t max_entries_per_sector = bpb_info.byts_per_sector / sizeof(tFatDirEntry);
 	uint32_t curr_clusters_curr_sector_id;
-	uint32_t dir_curr_cluster = dir_first_cluster_idx;
+	uint32_t dir_curr_cluster = parent_dir->dir_info.starting_cluster;
 	uint8_t sector_buffer_tmp[SD_BLOCK_SIZE];
 	uint16_t root_entery_iterator;
 	uint16_t sector_iterator = 0;
-	tDirectoryEntry* pDirectory_Entry;
+	tFatDirEntry* ptr_directory_entry;
 	
+	if(!parent_dir->child_list)
+	{
+		parent_dir->child_list = List_Create();
+
+		if(parent_dir->child_list == 0)
+			while(1);
+	}
+
 	do{
 		/*iterate on clusters entries*/
 		curr_clusters_curr_sector_id = FAT32_GetClusterFirstSectorId(dir_curr_cluster);
@@ -201,45 +279,41 @@ static void FAT32_ScanDirectory(uint32_t dir_first_cluster_idx)
 
 			if(Sd_ReadBlock(curr_clusters_curr_sector_id * SD_BLOCK_SIZE,sector_buffer_tmp) == 1)
 			{
-				pDirectory_Entry = (tDirectoryEntry*)&sector_buffer_tmp;
+				ptr_directory_entry = (tFatDirEntry*)&sector_buffer_tmp;
 
-				for(root_entery_iterator = 0 ; root_entery_iterator < root_entries_per_sector ; root_entery_iterator++)
+				for(root_entery_iterator = 0 ; root_entery_iterator < max_entries_per_sector ; root_entery_iterator++)
 				{
-					if(pDirectory_Entry != 0)
+					if(ptr_directory_entry != 0)
 					{
-						if(pDirectory_Entry->file_name[0] == FILE_NO_SUBSEQUENT)
+						if(ptr_directory_entry->file_name[0] == FILE_NO_SUBSEQUENT)
 						{
 							return;
 						}
-						else if (pDirectory_Entry->file_name[0] != FILE_DELETED) /*deleted*/	
+						else if (ptr_directory_entry->file_name[0] != FILE_DELETED) /*deleted*/	
 						{
+							/*Append files and sub directories*/
 						    /*Attributes check should be revised*/
-							if( pDirectory_Entry->attr == 0x0f ||
-							    (pDirectory_Entry->attr & ATTR_ARCHEIVE) != 0 ||
-							    (pDirectory_Entry->attr & ATTR_HIDDEN_FILE == 0 &&
-								pDirectory_Entry->attr & ATTR_SYS_FILE == 0 &&
-								pDirectory_Entry->attr & ATTR_VOL_LABEL  == 0 &&
-								pDirectory_Entry->attr & ATTR_SUBDIRECTORY == 0))
+							if( ptr_directory_entry->attr == 0x0f ||
+							    (ptr_directory_entry->attr & ATTR_ARCHEIVE) != 0 ||
+								(ptr_directory_entry->attr & ATTR_SUBDIRECTORY != 0) ||
+							    (ptr_directory_entry->attr & ATTR_HIDDEN_FILE == 0 &&
+								ptr_directory_entry->attr & ATTR_SYS_FILE == 0 &&
+								ptr_directory_entry->attr & ATTR_VOL_LABEL  == 0))
 							{
-								FAT32_AppendFileInfoToList(pDirectory_Entry);
-							}
-							else if(pDirectory_Entry->attr & ATTR_SUBDIRECTORY != 0 &&
-										pDirectory_Entry->file_size == 0)
-							{
-								/*add sub directory*/
+								FAT32_AppendFileToDirChildList(parent_dir,ptr_directory_entry);
 							}
 						}
 					}
 
 					/*Next Entry*/
-					pDirectory_Entry++;
+					ptr_directory_entry++;
 				}
 
 				curr_clusters_curr_sector_id++;
 
 				sector_iterator++;
 			}
-		}while(sector_iterator <= volume_boot_area.sector_per_cluster);
+		}while(sector_iterator <= bpb_info.sector_per_cluster);
 		
 		sector_iterator = 0;
 		
@@ -250,63 +324,91 @@ static void FAT32_ScanDirectory(uint32_t dir_first_cluster_idx)
 		dir_curr_cluster <= FAT_USED_UPPER_LIM_CLUSTER);
 }
 
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
 void FAT32_Init(void)
 {
-	files_list_ptr = List_Create();
+	root_dir->dir_info.starting_cluster = bpb_info.root_dir_starting_cluster_idx;
 
-	if(files_list_ptr == 0)
-		while(1);
-
-	FAT32_ParseVolumeBootArea();
+	FAT32_ExtractBPBInfo();
 	FAT32_CalcVolumeMapBoundries();
-	FAT32_ScanDirectory(volume_boot_area.root_dir_starting_cluster_idx);
+	FAT32_ScanDir(&root_dir);
 
 	/*
 		Scan loop on directory queue (init with root dir first cluster idx) as long as it has elements
 	*/
 }
 
-uint8_t FAT32_FilesCount(void)
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static uint8_t FAT32_CompareFileName(void* ptr_dir,void *file_name,void** dir)
 {
-	return List_Count(files_list_ptr);
-}
+	tDir *local_ptr_dir = ptr_dir;
+	uint8_t ret = 0;
+	char *ext_start = strtok((char*)file_name,".");
 
-static tDirectoryEntry* FAT32_GetSearchFileWithIndex(uint8_t index)
-{
-	tDirectoryEntry* ret_val = 0;
-
-	if(index < FAT32_FilesCount())
+	if((strncmp(local_ptr_dir->dir_info.file_name,(char*)file_name,8) == 0) &&
+			(strncmp(local_ptr_dir->dir_info.ext,ext_start,3) == 0) &&
+			(local_ptr_dir->attr != ATTR_SUBDIRECTORY))
 	{
-		ret_val = List_GetDataAt(files_list_ptr,index);
+		*((tDir**)dir) = local_ptr_dir;
+		ret = 1;
 	}
 
-	return ret_val;
+	return ret;
 }
 
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static void FAT32_GetFileWithName(char* file_name,tDir **dir)
+{
+	List_Traverse(active_dir_ptr->child_list,FAT32_CompareFileName,file_name,dir);
+}
 
-int8_t FAT32_ReadFileAsBlocks(tDirectoryEntry* s,uint8_t (*pBuffer)[SD_BLOCK_SIZE])
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+int8_t FAT32_ReadFileAsBlocks(char* file_name,uint8_t (*pBuffer)[SD_BLOCK_SIZE])
 {
 	static uint8_t in_progress = 0;
 	static uint32_t curr_cluster_idx;
 	static uint32_t curr_cluster_sector_idx;
 	static uint32_t overall_file_sectors_number;
 	static uint32_t file_sectors_itr;
+	static tDir *s;
 	int8_t ret_val = -1;
 	
 	if(in_progress == 0)
 	{
-		in_progress = 1;
+		FAT32_GetFileWithName(file_name,&s);
 
-		curr_cluster_idx = s->starting_cluster;
+		if(s)
+		{
+			in_progress = 1;
 
-		curr_cluster_sector_idx = FAT32_GetClusterFirstSectorId(curr_cluster_idx);
+			curr_cluster_idx = s->dir_info.starting_cluster;
 
-		overall_file_sectors_number = FAT32_CalcFileSectorsNo(s->file_size);
+			curr_cluster_sector_idx = FAT32_GetClusterFirstSectorId(curr_cluster_idx);
 
-		file_sectors_itr = 0;
+			overall_file_sectors_number = FAT32_CalcFileSectorsNo(s->dir_info.file_size);
+
+			file_sectors_itr = 0;
+		}
 	}
 
-	if(Sd_ReadBlock(curr_cluster_sector_idx * SD_BLOCK_SIZE,*pBuffer) == 1)
+	if((in_progress == 1) &&
+			Sd_ReadBlock(curr_cluster_sector_idx * SD_BLOCK_SIZE,*pBuffer) == 1)
 	{
 		curr_cluster_sector_idx++;
 
@@ -318,7 +420,7 @@ int8_t FAT32_ReadFileAsBlocks(tDirectoryEntry* s,uint8_t (*pBuffer)[SD_BLOCK_SIZ
 
 			ret_val = 1; /*success*/
 		}
-		else if(file_sectors_itr % volume_boot_area.sector_per_cluster == 0)
+		else if(file_sectors_itr % bpb_info.sector_per_cluster == 0)
 		{
 			curr_cluster_idx = FAT32_GetNextChainCluster(curr_cluster_idx);
 
@@ -343,30 +445,120 @@ int8_t FAT32_ReadFileAsBlocks(tDirectoryEntry* s,uint8_t (*pBuffer)[SD_BLOCK_SIZ
 	return ret_val;
 }
 
-uint8_t FAT32_SearchFilesWithExtension(const char* extension,tDirectoryEntry** result_files,uint8_t* result_count)
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static uint8_t FAT32_AppendNameIfFile(void* ptr_dir,void *count,void** file_names_arr)
+{
+	tDir *local_ptr_dir = ptr_dir;
+
+	if(local_ptr_dir->dir_info.attr != ATTR_SUBDIRECTORY)
+	{
+		((char**)file_names_arr)[(*(uint8_t*)count)++] = local_ptr_dir->dir_info.file_name_w_ext;
+	}
+
+	return 0;
+}
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+uint8_t FAT32_ListFiles(char** file_names_arr,uint8_t* result_count)
 {
 	uint8_t ret_val = 0;
-	uint8_t files_no = FAT32_FilesCount();
-	uint8_t files_iterator;
-	tDirectoryEntry* temp_file_info;
 
-	*result_count = 0;
-
-	*result_files = malloc(sizeof(tDirectoryEntry)*files_no);
-
-	for(files_iterator = 0 ; files_iterator < files_no ; files_iterator++)
-	{
-		temp_file_info = FAT32_GetSearchFileWithIndex(files_iterator);
-
-		if(strncmp((const char*)temp_file_info->ext,extension,3) == 0)
-		{
-			(*result_files)[*result_count] = *temp_file_info;
-
-			(*result_count)++;
-
-			ret_val = 1;
-		}
-	}
+	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfFile,result_count,file_names_arr);
 
 	return ret_val;
 }
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static uint8_t FAT32_AppendNameIfDir(void* ptr_dir,void *count,void** dir_names_arr)
+{
+	tDir *local_ptr_dir = ptr_dir;
+
+	if((local_ptr_dir->dir_info.attr == ATTR_SUBDIRECTORY) &&
+			(local_ptr_dir->dir_info.file_size == 0))
+	{
+		((char**)dir_names_arr)[(*(uint8_t*)count)++] = local_ptr_dir->dir_info.file_name_w_ext;
+	}
+
+	return 0;
+}
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+uint8_t FAT32_ListDirs(char** dir_names_arr,uint8_t* result_count)
+{
+	uint8_t ret_val = 0;
+
+	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfDir,result_count,dir_names_arr);
+
+	return ret_val;
+}
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+static uint8_t FAT32_CompareDirName(void* ptr_dir,void *dir_name,void** dir)
+{
+	tDir *local_ptr_dir = ptr_dir;
+	uint8_t ret = 0;
+
+	if((strncmp(local_ptr_dir->dir_info.file_name,(char*)dir_name,8) == 0) &&
+			(local_ptr_dir->attr == ATTR_SUBDIRECTORY) &&
+			(local_ptr_dir->file_size == 0))
+	{
+		*((tDir**)dir) = local_ptr_dir;
+		ret = 1;
+	}
+
+	return ret;
+}
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+uint8_t FAT32_MountDir(char *dir_name)
+{
+	uint8_t ret = 0;
+	tDir *found_dir = 0;
+
+	List_Traverse(active_dir_ptr->child_list,FAT32_CompareDirName,dir_name,&found_dir);
+
+	if(found_dir)
+	{
+		active_dir_ptr = found_dir;
+		ret = 1;
+	}
+
+	return ret;
+}
+
+
+/**
+    *@brief
+    *@param void
+    *@retval void
+*/
+char* FAT32_GetMountedDirParent(void)
+{
+	return active_dir_ptr->parent;
+}
+
