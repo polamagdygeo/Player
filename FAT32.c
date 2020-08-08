@@ -138,7 +138,7 @@ static void	FAT32_ExtractBPBInfo(void)
     if(Sd_ReadBlock(0,sector_buffer_tmp) == 1)
     {
     	if(sector_buffer_tmp[510] == 0x55 &&
-    			sector_buffer_tmp[510] == 0xAA)	/*Always MBR end with these bytes*/
+    			sector_buffer_tmp[511] == 0xAA)	/*Always MBR end with these bytes*/
     	{
     		/*Master Boot Record (MBR) is OK*/
     		pEntry = sector_buffer_tmp + MBR_PARTATION_TABLE_OFFSET;
