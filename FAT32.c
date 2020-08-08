@@ -93,7 +93,7 @@ typedef struct{
 	uint8_t chs_begin[3];
 	uint8_t type_code;
 	uint8_t chs_end[3];
-	uint32_t lba_begin;
+	uint32_t lba_begin_sector;
 	uint32_t no_of_sectors;
 }tPartationTableEntry;
 
@@ -156,7 +156,7 @@ static void	FAT32_ExtractBPBInfo(void)
     		}
 
     	    if((i != MAX_PARTATION_TABLE_ENTRIES) &&
-    	    		Sd_ReadBlock(pEntry->lba_begin,sector_buffer_tmp) == 1)
+    	    		Sd_ReadBlock((pEntry->lba_begin_sector) * SD_BLOCK_SIZE,sector_buffer_tmp) == 1)
     	    {
     	        bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
     	        bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
@@ -166,7 +166,7 @@ static void	FAT32_ExtractBPBInfo(void)
     	        bpb_info.sector_per_cluster = sector_buffer_tmp[13];
     	        bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
     	        bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
-    	        volume_map.boot_area_start_sector = pEntry->lba_begin / bpb_info.byts_per_sector;
+    	        volume_map.boot_area_start_sector = pEntry->lba_begin_sector / bpb_info.byts_per_sector;
     	    }
     	}
     }
