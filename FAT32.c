@@ -19,6 +19,10 @@
 #define VOL_CONF_HIDDEN_SECT_OFFSET			28
 #define VOL_CONF_TOTAL_SECT_OFFSET			32
 
+#define MBR_PARTATION_TABLE_OFFSET			446
+#define PARTATION_TABLE_ENTRY_SIZE			16
+#define MAX_PARTATION_TABLE_ENTRIES			4
+
 typedef uint32_t tFATEntry;
 
 typedef enum{
@@ -84,6 +88,15 @@ typedef struct{
 	uint8_t fat_table_entries_no;
 }tBPB_Info;
 
+typedef struct{
+	uint8_t boot_flag;
+	uint8_t chs_begin[3];
+	uint8_t type_code;
+	uint8_t chs_end[3];
+	uint32_t lba_begin;
+	uint32_t no_of_sectors;
+}tPartationTableEntry;
+
 /*in sector unit*/
 typedef struct{
     uint64_t boot_area_start_sector;
@@ -120,28 +133,42 @@ static void	FAT32_ExtractBPBInfo(void)
 {
 	uint8_t sector_buffer_tmp[SD_BLOCK_SIZE];
     uint32_t idx;
+    tPartationTableEntry *pEntry;
 
-    for(idx = 0 ; idx < UINT_MAX ;)
+    if(Sd_ReadBlock(0,sector_buffer_tmp) == 1)
     {
-        if(Sd_ReadBlock((idx)*SD_BLOCK_SIZE,sector_buffer_tmp) == 1)
-        {
-            /*Searching for the OEM is not enough also getting first sector not always contain BPB (BIOS parameter block) info*/
-            if(strcmp((const char*)(sector_buffer_tmp+3),(const char*)"MSDOS5.0") == 0)
-            {
-                volume_map.boot_area_start_sector = idx;
-                bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
-                bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
-                bpb_info.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
-                bpb_info.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
-                bpb_info.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
-                bpb_info.sector_per_cluster = sector_buffer_tmp[13];
-                bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
-                bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
-                break;
-            }
+    	if(sector_buffer_tmp[510] == 0x55 &&
+    			sector_buffer_tmp[510] == 0xAA)	/*Always MBR end with these bytes*/
+    	{
+    		/*Master Boot Record (MBR) is OK*/
+    		pEntry = sector_buffer_tmp + MBR_PARTATION_TABLE_OFFSET;
 
-            idx++;
-        }
+    		for(i = 0 ; i < MAX_PARTATION_TABLE_ENTRIES ; i++)
+    		{
+    			if(pEntry->type_code == 0x0B ||
+    					pEntry->type_code == 0x0C) 	/*These type codes used with FAT32*/
+    			{
+    				/*Partation that use FAT32 is found*/
+    				break;
+    			}
+
+    			pEntry++;
+    		}
+
+    	    if((i != MAX_PARTATION_TABLE_ENTRIES) &&
+    	    		Sd_ReadBlock(pEntry->lba_begin,sector_buffer_tmp) == 1)
+    	    {
+    	        bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
+    	        bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
+    	        bpb_info.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
+    	        bpb_info.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
+    	        bpb_info.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
+    	        bpb_info.sector_per_cluster = sector_buffer_tmp[13];
+    	        bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
+    	        bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
+    	        volume_map.boot_area_start_sector = pEntry->lba_begin / bpb_info.byts_per_sector;
+    	    }
+    	}
     }
 }
 
@@ -242,7 +269,19 @@ static void FAT32_AppendFileToDirChildList(tDirTreeNode* parent,tFatDirEntry* s)
 
 		pS->parent = parent;
 
-		List_Append(parent->child_list,pS);
+		if(!parent_dir->child_list)
+		{
+			parent_dir->child_list = List_Create();
+		}
+
+		if(parent_dir->child_list)
+		{
+			List_Append(parent->child_list,pS);
+		}
+		else
+		{
+			free(pS);
+		}
 	}
 }
 
@@ -260,14 +299,6 @@ static void FAT32_ScanDir(tDirTreeNode *parent_dir)
 	uint16_t root_entery_iterator;
 	uint16_t sector_iterator = 0;
 	tFatDirEntry* ptr_directory_entry;
-	
-	if(!parent_dir->child_list)
-	{
-		parent_dir->child_list = List_Create();
-
-		if(parent_dir->child_list == 0)
-			while(1);
-	}
 
 	do{
 		/*iterate on clusters entries*/
