@@ -9,12 +9,12 @@ driverlib/sysexc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/i
 driverlib/sysexc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_types.h
 driverlib/sysexc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_stdint.h
 driverlib/sysexc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/sys/_stdint.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/inc/hw_ints.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/inc/hw_sysctl.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/inc/hw_sysexc.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/inc/hw_types.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/driverlib/debug.h
-driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/driverlib/interrupt.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_ints.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_sysctl.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_sysexc.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_types.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/debug.h
+driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/interrupt.h
 
 ../driverlib/sysexc.c: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/stdbool.h: 
@@ -25,9 +25,9 @@ driverlib/sysexc.obj: /home/pola/workspace_v8/Mp3Player/driverlib/interrupt.h
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_types.h: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_stdint.h: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/sys/_stdint.h: 
-/home/pola/workspace_v8/Mp3Player/inc/hw_ints.h: 
-/home/pola/workspace_v8/Mp3Player/inc/hw_sysctl.h: 
-/home/pola/workspace_v8/Mp3Player/inc/hw_sysexc.h: 
-/home/pola/workspace_v8/Mp3Player/inc/hw_types.h: 
-/home/pola/workspace_v8/Mp3Player/driverlib/debug.h: 
-/home/pola/workspace_v8/Mp3Player/driverlib/interrupt.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_ints.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_sysctl.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_sysexc.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc/hw_types.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/debug.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/interrupt.h: 

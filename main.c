@@ -69,13 +69,14 @@ int main(void)
 
     FAT32_ListFiles(files_name_arr,&count);
     FAT32_ListDirs(dir_name_arr,&dir_count);
-    FAT32_MountRelativeDir("FOLDER");
-    FAT32_ListFiles(files_name_arr2,&count2);
 
-    while(FAT32_ReadFileAsBlocks(files_name_arr[0],&buffer) == 0)
+    while(FAT32_ReadFileAsBlocks(files_name_arr[2],&buffer) == 0)
     {
         buffer[0] = 0;
     }
+
+    FAT32_MountRelativeDir("Folder");
+    FAT32_ListFiles(files_name_arr2,&count2);
 
     PWMGenDisable(PWM1_BASE, PWM_GEN_2);
 

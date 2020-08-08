@@ -8,7 +8,7 @@ driverlib/sw_crc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/i
 driverlib/sw_crc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_types.h
 driverlib/sw_crc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_stdint.h
 driverlib/sw_crc.obj: /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/sys/_stdint.h
-driverlib/sw_crc.obj: /home/pola/workspace_v8/Mp3Player/driverlib/sw_crc.h
+driverlib/sw_crc.obj: /home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/sw_crc.h
 
 ../driverlib/sw_crc.c: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/stdint.h: 
@@ -18,4 +18,4 @@ driverlib/sw_crc.obj: /home/pola/workspace_v8/Mp3Player/driverlib/sw_crc.h
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_types.h: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/machine/_stdint.h: 
 /home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include/sys/_stdint.h: 
-/home/pola/workspace_v8/Mp3Player/driverlib/sw_crc.h: 
+/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib/sw_crc.h: 
