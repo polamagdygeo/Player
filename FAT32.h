@@ -9,6 +9,7 @@
 #define FAT32_H_
 
 #include <stdint.h>
+#include "SD_Card.h"
 
 void FAT32_Init(void);
 int8_t FAT32_ReadFileAsBlocks(char* file_name,uint8_t (*pBuffer)[SD_BLOCK_SIZE]);

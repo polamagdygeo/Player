@@ -170,34 +170,34 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXE_OUTPUTS += \
-Mp3Player.out \
+Mp3Player_TivaC.out \
 
 EXE_OUTPUTS__QUOTED += \
-"Mp3Player.out" \
+"Mp3Player_TivaC.out" \
 
 BIN_OUTPUTS += \
-Mp3Player.hex \
+Mp3Player_TivaC.hex \
 
 BIN_OUTPUTS__QUOTED += \
-"Mp3Player.hex" \
+"Mp3Player_TivaC.hex" \
 
 
 # All Target
 all: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
-	@$(MAKE) --no-print-directory -Onone "Mp3Player.out"
+	@$(MAKE) --no-print-directory -Onone "Mp3Player_TivaC.out"
 
 # Tool invocations
-Mp3Player.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
+Mp3Player_TivaC.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(A_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: ARM Linker'
-	"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"Mp3Player.map" --heap_size=1024 --stack_size=1024 -i"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/lib" -i"/home/pola/workspace_v8/Mp3Player/inc" -i"/home/pola/workspace_v8/Mp3Player/driverlib" -i"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="Mp3Player_linkInfo.xml" --rom_model -o "Mp3Player.out" $(ORDERED_OBJS) $(A_SRCS)
+	"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 -me --define=ccs="ccs" --define=PART_TM4C123GH6PM -g --gcc --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"Mp3Player_TivaC.map" --heap_size=1024 --stack_size=1024 -i"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/lib" -i"/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/inc" -i"/home/pola/workspace_v8/Mp3Player/Mp3Player_TivaC/driverlib" -i"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --warn_sections --xml_link_info="Mp3Player_TivaC_linkInfo.xml" --rom_model -o "Mp3Player_TivaC.out" $(ORDERED_OBJS) $(A_SRCS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
-Mp3Player.hex: $(EXE_OUTPUTS)
+Mp3Player_TivaC.hex: $(EXE_OUTPUTS)
 	@echo 'Building files: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo 'Invoking: ARM Hex Utility'
-	"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/bin/armhex"  -o "Mp3Player.hex" $(EXE_OUTPUTS__QUOTED)
+	"/home/pola/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.1.LTS/bin/armhex"  -o "Mp3Player_TivaC.hex" $(EXE_OUTPUTS__QUOTED)
 	@echo 'Finished building: $(strip $(EXE_OUTPUTS__QUOTED))'
 	@echo ' '
 

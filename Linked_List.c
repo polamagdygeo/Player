@@ -7,7 +7,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 #include "Linked_List.h"
-#include "mem.h"
+#include <stdlib.h>
 
 typedef struct tList_Node{
 	struct tList_Node* pNext;
@@ -15,11 +15,11 @@ typedef struct tList_Node{
 	void* data;
 }tList_Node;
 
-typedef struct list{
+struct list{
 	tList_Node* pTail;
 	tList_Node* pHead;
 	uint8_t nodes_number;
-}tList;
+};
 
 /* Private function prototypes -----------------------------------------------*/
 static tList_Node* List_CreateNode(tList* list,void* s);
@@ -32,7 +32,7 @@ static tList_Node* List_GetNode(tList* list,uint8_t idx);
 */
 static tList_Node* List_CreateNode(tList* list,void* s)
 {
-	tList_Node* pN = os_zalloc(sizeof(tList_Node));
+	tList_Node* pN = calloc(1,sizeof(tList_Node));
 	if(pN!=0)
 	{
 		pN->data = s;
@@ -81,7 +81,7 @@ static tList_Node* List_GetNode(tList* list,uint8_t idx)
 */
 tList* List_Create(void)
 {
-	tList* pL = os_zalloc(sizeof(tList));
+	tList* pL = calloc(1,sizeof(tList));
 	if(pL!=0)
 	{
 		pL->pTail = 0;
@@ -178,8 +178,8 @@ uint8_t List_Remove(tList* list,uint8_t idx)
 		node->pPrev->pNext = node->pNext;
 		node->pNext->pPrev = node->pPrev;
 		d = node->data;
-		os_free(d);
-		os_free(node);
+		free(d);
+		free(node);
 		ret = 1;
 	}
 
