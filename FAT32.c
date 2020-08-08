@@ -118,7 +118,6 @@ static void FAT32_GetClusterAssocFatSectorAndOffset(uint32_t cluster_idx,uint32_
 static uint32_t FAT32_GetNextChainCluster(uint32_t cluster_idx);
 static void FAT32_AppendFileToDirChildList(tDirTreeNode* parent,tFatDirEntry* s);
 static void FAT32_ScanDir(tDirTreeNode *parent_dir);
-static tFatDirEntry* FAT32_GetSearchFileWithIndex(uint8_t index);
 static uint8_t FAT32_CompareDirName(void* ptr_dir,void *dir_name,void** dir);
 static uint8_t FAT32_AppendNameIfDir(void* ptr_dir,void *count,void** dir_names_arr);
 static uint8_t FAT32_AppendNameIfFile(void* ptr_dir,void *count,void** file_names_arr);
@@ -142,7 +141,7 @@ static void	FAT32_ExtractBPBInfo(void)
     			sector_buffer_tmp[511] == 0xAA) /*MBR Signature bytes*/
     	{
     		/*Master Boot Record (MBR) is OK*/
-    		pEntry = sector_buffer_tmp + MBR_PARTATION_TABLE_OFFSET;
+    		pEntry = (tPartationTableEntry*)(sector_buffer_tmp + MBR_PARTATION_TABLE_OFFSET);
 
     		for(i = 0 ; i < MAX_PARTATION_TABLE_ENTRIES ; i++)
     		{
@@ -309,6 +308,8 @@ static void FAT32_ScanDir(tDirTreeNode *parent_dir)
 	uint16_t sector_iterator = 0;
 	tFatDirEntry* ptr_directory_entry;
 
+	/*parent child list should be flushed to avoid duplicate at re mount*/
+
 	do{
 		/*iterate on clusters entries*/
 		curr_clusters_curr_sector_id = FAT32_GetClusterFirstSectorId(dir_curr_cluster);
@@ -332,14 +333,23 @@ static void FAT32_ScanDir(tDirTreeNode *parent_dir)
 						else if (ptr_directory_entry->file_name[0] != FILE_DELETED) /*deleted*/	
 						{
 							/*Append files and sub directories*/
-							if( ptr_directory_entry->attr == 0x0F || /*Long filename text  the basic idea is that a bunch of 32-byte entries preceeding the normal one are used to hold the long name that corresponds to that normal directory record. */
-							    (ptr_directory_entry->attr & ATTR_ARCHEIVE) != 0 || /*Modified since last backup*/
-								(ptr_directory_entry->attr & ATTR_SUBDIRECTORY != 0) ||
-							    (ptr_directory_entry->attr & ATTR_HIDDEN_FILE == 0 &&
-								ptr_directory_entry->attr & ATTR_SYS_FILE == 0 &&
-								ptr_directory_entry->attr & ATTR_VOL_LABEL  == 0))
+
+						    /*
+						     * Long filename text  the basic idea is that a bunch of 32-byte entries preceeding
+						     * the normal one are used to hold the long name that corresponds to
+						     * that normal directory record.
+						     */
+						    if( ptr_directory_entry->attr == 0x0F)
 							{
-								FAT32_AppendFileToDirChildList(parent_dir,ptr_directory_entry);
+
+							}
+							else if((ptr_directory_entry->attr & ATTR_ARCHEIVE) != 0 || /*Modified since last backup*/
+                                ((ptr_directory_entry->attr & ATTR_SUBDIRECTORY) != 0) ||
+                                ((ptr_directory_entry->attr & ATTR_HIDDEN_FILE) == 0 &&
+                                (ptr_directory_entry->attr & ATTR_SYS_FILE) == 0 &&
+                                (ptr_directory_entry->attr & ATTR_VOL_LABEL)  == 0))
+							{
+							    FAT32_AppendFileToDirChildList(parent_dir,ptr_directory_entry);
 							}
 						}
 					}
@@ -386,8 +396,8 @@ static uint8_t FAT32_CompareFileName(void* ptr_dir,void *file_name,void** dir)
 	uint8_t ret = 0;
 	char *ext_start = strtok((char*)file_name,".");
 
-	if((strncmp(local_ptr_dir->dir_info.file_name,(char*)file_name,8) == 0) &&
-			(strncmp(local_ptr_dir->dir_info.ext,ext_start,3) == 0) &&
+	if((strncmp((const char*)local_ptr_dir->dir_info.file_name,(char*)file_name,8) == 0) &&
+			(strncmp((const char*)local_ptr_dir->dir_info.ext,ext_start,3) == 0) &&
 			(local_ptr_dir->dir_info.attr != ATTR_SUBDIRECTORY))
 	{
 		*((tDirTreeNode**)dir) = local_ptr_dir;
@@ -404,7 +414,7 @@ static uint8_t FAT32_CompareFileName(void* ptr_dir,void *file_name,void** dir)
 */
 static void FAT32_GetFileWithName(char* file_name,tDirTreeNode **dir)
 {
-	List_Traverse(active_dir_ptr->child_list,FAT32_CompareFileName,file_name,dir);
+	List_Traverse(active_dir_ptr->child_list,FAT32_CompareFileName,(void*)file_name,(void**)dir);
 }
 
 /**
@@ -490,7 +500,7 @@ static uint8_t FAT32_AppendNameIfFile(void* ptr_dir,void *count,void** file_name
 
 	if(local_ptr_dir->dir_info.attr != ATTR_SUBDIRECTORY)
 	{
-		((char**)file_names_arr)[(*(uint8_t*)count)++] = local_ptr_dir->dir_info.file_name;
+		((char**)file_names_arr)[(*(uint8_t*)count)++] = (char*)local_ptr_dir->dir_info.file_name;
 	}
 
 	return 0;
@@ -505,7 +515,7 @@ uint8_t FAT32_ListFiles(char** file_names_arr,uint8_t* result_count)
 {
 	uint8_t ret_val = 0;
 
-	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfFile,result_count,file_names_arr);
+	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfFile,(void*)result_count,(void**)file_names_arr);
 
 	return ret_val;
 }
@@ -522,7 +532,7 @@ static uint8_t FAT32_AppendNameIfDir(void* ptr_dir,void *count,void** dir_names_
 	if((local_ptr_dir->dir_info.attr == ATTR_SUBDIRECTORY) &&
 			(local_ptr_dir->dir_info.file_size == 0))
 	{
-		((char**)dir_names_arr)[(*(uint8_t*)count)++] = local_ptr_dir->dir_info.file_name;
+		((char**)dir_names_arr)[(*(uint8_t*)count)++] = (char*)local_ptr_dir->dir_info.file_name;
 	}
 
 	return 0;
@@ -537,7 +547,7 @@ uint8_t FAT32_ListDirs(char** dir_names_arr,uint8_t* result_count)
 {
 	uint8_t ret_val = 0;
 
-	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfDir,result_count,dir_names_arr);
+	List_Traverse(active_dir_ptr->child_list,FAT32_AppendNameIfDir,(void*)result_count,(void**)dir_names_arr);
 
 	return ret_val;
 }
@@ -552,7 +562,7 @@ static uint8_t FAT32_CompareDirName(void* ptr_dir,void *dir_name,void** dir)
 	tDirTreeNode *local_ptr_dir = ptr_dir;
 	uint8_t ret = 0;
 
-	if((strncmp(local_ptr_dir->dir_info.file_name,(char*)dir_name,8) == 0) &&
+	if((strncmp((const char*)local_ptr_dir->dir_info.file_name,(char*)dir_name,strlen((char*)dir_name)) == 0) &&
 			(local_ptr_dir->dir_info.attr == ATTR_SUBDIRECTORY) &&
 			(local_ptr_dir->dir_info.file_size == 0))
 	{
@@ -573,12 +583,13 @@ uint8_t FAT32_MountRelativeDir(char *dir_name)
 	uint8_t ret = 0;
 	tDirTreeNode *found_dir = 0;
 
-	List_Traverse(active_dir_ptr->child_list,FAT32_CompareDirName,dir_name,&found_dir);
+	List_Traverse(active_dir_ptr->child_list,FAT32_CompareDirName,(void*)dir_name,(void**)&found_dir);
 
 	if(found_dir)
 	{
 		active_dir_ptr = found_dir;
 		ret = 1;
+		FAT32_ScanDir(active_dir_ptr);
 	}
 
 	return ret;
@@ -598,6 +609,7 @@ uint8_t FAT32_MountParentDir(void)
 	{
 		active_dir_ptr = active_dir_ptr->parent;
 		ret = 1;
+		FAT32_ScanDir(active_dir_ptr);
 	}
 
 	return ret;

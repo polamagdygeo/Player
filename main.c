@@ -24,6 +24,10 @@ int main(void)
 {
     char *files_name_arr[10] = {0};
     uint8_t count = 0;
+    char *files_name_arr2[10] = {0};
+    uint8_t count2 = 0;
+    char *dir_name_arr[10] = {0};
+    uint8_t dir_count = 0;
     uint8_t buffer[512];
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
@@ -64,6 +68,9 @@ int main(void)
     FAT32_Init();
 
     FAT32_ListFiles(files_name_arr,&count);
+    FAT32_ListDirs(dir_name_arr,&dir_count);
+    FAT32_MountRelativeDir("FOLDER");
+    FAT32_ListFiles(files_name_arr2,&count2);
 
     while(FAT32_ReadFileAsBlocks(files_name_arr[0],&buffer) == 0)
     {
