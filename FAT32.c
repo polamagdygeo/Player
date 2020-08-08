@@ -138,7 +138,7 @@ static void	FAT32_ExtractBPBInfo(void)
     if(Sd_ReadBlock(0,sector_buffer_tmp) == 1)
     {
     	if(sector_buffer_tmp[510] == 0x55 &&
-    			sector_buffer_tmp[511] == 0xAA)	/*Always MBR end with these bytes*/
+    			sector_buffer_tmp[511] == 0xAA) /*MBR Signature bytes*/
     	{
     		/*Master Boot Record (MBR) is OK*/
     		pEntry = sector_buffer_tmp + MBR_PARTATION_TABLE_OFFSET;
@@ -158,15 +158,19 @@ static void	FAT32_ExtractBPBInfo(void)
     	    if((i != MAX_PARTATION_TABLE_ENTRIES) &&
     	    		Sd_ReadBlock((pEntry->lba_begin_sector) * SD_BLOCK_SIZE,sector_buffer_tmp) == 1)
     	    {
-    	        bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
-    	        bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
-    	        bpb_info.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
-    	        bpb_info.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
-    	        bpb_info.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
-    	        bpb_info.sector_per_cluster = sector_buffer_tmp[13];
-    	        bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
-    	        bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
-    	        volume_map.boot_area_start_sector = pEntry->lba_begin_sector / bpb_info.byts_per_sector;
+    	    	if(sector_buffer_tmp[510] == 0x55 &&
+		    			sector_buffer_tmp[511] == 0xAA)	/*Boot sector Signature bytes*/
+		    	{
+	    	        bpb_info.byts_per_sector = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_BYTE_PER_SECT_OFFSET));
+	    	        bpb_info.reserved_area_sectors_no = *((uint16_t*)(sector_buffer_tmp + VOL_CONF_RES_AREA_SIZE_OFFSET));
+	    	        bpb_info.fat_table_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FAT_SEC_SEC_NO_OFFSET));
+	    	        bpb_info.root_dir_starting_cluster_idx = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_FIRST_CLUST_IDX_OFFSET));
+	    	        bpb_info.hidden_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_HIDDEN_SECT_OFFSET));
+	    	        bpb_info.sector_per_cluster = sector_buffer_tmp[13];
+	    	        bpb_info.fat_table_entries_no = sector_buffer_tmp[16];
+	    	        bpb_info.total_sectors_no = *((uint32_t*)(sector_buffer_tmp + VOL_CONF_TOTAL_SECT_OFFSET));
+	    	        volume_map.boot_area_start_sector = pEntry->lba_begin_sector / bpb_info.byts_per_sector;
+		    	}
     	    }
     	}
     }
