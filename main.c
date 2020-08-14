@@ -75,7 +75,7 @@ int main(void)
         buffer[0] = 0;
     }
 
-    FAT32_MountRelativeDir("Folder");
+    FAT32_CdToRelativeDir("Folder");
     FAT32_ListFiles(files_name_arr2,&count2);
 
     PWMGenDisable(PWM1_BASE, PWM_GEN_2);
