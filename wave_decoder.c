@@ -8,6 +8,7 @@
 #include "wave_decoder.h"
 #include "string.h"
 
+/*Not used helper function*/
 static void big_to_little_endian_in_place(uint8_t *start_byte_ptr,uint8_t bytes_no)
 {
     uint8_t itr;
@@ -29,7 +30,7 @@ int8_t Wave_Decode(uint8_t *frame_block,uint32_t block_size,tWave_FrameInfo *inf
     uint32_t current_block_data_size;
 
     /*frame start*/
-    if(in_progress_info_ref != info)
+    if(in_progress_info_ref != info) /*this check for same file info is not enough as it only compares the pointers not unique data*/
     {
         /*Get frame start*/
         if(found_frame_start = strstr((const char*)frame_block,"RIFF"))

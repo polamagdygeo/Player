@@ -11,18 +11,18 @@
 #include "stdint.h"
 
 typedef struct{
-    char chunk_id[4];
+    char chunk_id[4];           /*RIFF*/
     uint32_t chunk_size;
-    char chunk_format[4];
-    char sub_chunk1_id[4];
-    uint32_t sub_chunk1_size;
+    char chunk_format[4];       /*WAVE*/
+    char sub_chunk1_id[4];      /*fmt */
+    uint32_t sub_chunk1_size;   /*16 for PCM*/
     uint16_t audio_format;
     uint16_t channels_no;
     uint32_t sample_rate;
     uint32_t byte_rate;
     uint16_t block_align;
-    uint16_t bits_per_sample;
-    char sub_chunk2_id[4];
+    uint16_t bits_per_sample;   /*8 ,16 ,...*/
+    char sub_chunk2_id[4];      /*DATA*/
     uint32_t sub_chunk2_size;
 }__attribute__((packed, aligned(1)))tWave_FrameInfo;
 
