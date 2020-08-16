@@ -11,31 +11,29 @@
 #include "stdint.h"
 
 typedef struct{
-    char chunk_id[4];           /*RIFF*/
-    uint32_t chunk_size;
-    char chunk_format[4];       /*WAVE*/
-    char sub_chunk1_id[4];      /*fmt */
-    uint32_t sub_chunk1_size;   /*16 for PCM*/
-    uint16_t audio_format;
-    uint16_t channels_no;
-    uint32_t sample_rate;
-    uint32_t byte_rate;
-    uint16_t block_align;
-    uint16_t bits_per_sample;   /*8 ,16 ,...*/
-    char sub_chunk2_id[4];      /*DATA*/
-    uint32_t sub_chunk2_size;
-}__attribute__((packed, aligned(1)))tWave_FrameInfo;
+    uint32_t sample_period_us;
+    uint32_t total_samples_block_no;
+    uint32_t read_samples_block_no;
+    uint32_t last_read_samples_block_no;
+    void *pcm_buffer;
+    uint8_t channels_no;
+    uint8_t bits_per_sample;
+    uint8_t samples_block_size;
+}tWave_DecodingInfo;
 
 typedef struct{
-    uint16_t left_channel_val;
-    uint16_t right_channel_val;
-}tWave_PcmFormat16Bit;
+    int16_t left_channel_val;
+    int16_t right_channel_val;
+}tWave_RawPcmStreo16BitSample;
 
 typedef struct{
     uint8_t left_channel_val;
     uint8_t right_channel_val;
-}tWave_PcmFormat8Bit;
+}tWave_RawPcmStreo8BitSample;
 
-int8_t Wave_Decode(uint8_t *frame_block,uint32_t block_size,tWave_FrameInfo *info,void **pcm_buffer,uint32_t *samples_no);
+typedef int8_t  tWave_RawPcmMono16BitSample;
+typedef uint8_t tWave_RawPcmMono8BitSample;
+
+int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_size,tWave_DecodingInfo *info);
 
 #endif /* WAVE_DECODER_H_ */

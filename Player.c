@@ -12,6 +12,7 @@
 #include "FAT32.h"
 #include "wave_decoder.h"
 #include "string.h"
+#include "Time.h"
 
 uint8_t buffer[512];
 
@@ -48,9 +49,9 @@ void Mp3Player_Update(void)
     char *files_name_arr[10] = {0};
     uint8_t count = 0;
     uint8_t itr;
-    tWave_FrameInfo info;
-    uint32_t samples_no;
-    tWave_PcmFormat8Bit *pcm_buffer;
+    tWave_DecodingInfo info = {0};
+    uint32_t samples_block_itr;
+    uint8_t file_read_done;
 
     FAT32_ListFiles(files_name_arr,&count);
 
@@ -62,11 +63,55 @@ void Mp3Player_Update(void)
         }
     }
 
-    while(FAT32_ReadFileAsBlocks(files_name_arr[itr],&buffer) == 0)
+    while((file_read_done = FAT32_ReadFileAsBlocks(files_name_arr[itr],&buffer)) != -1)
     {
-        Wave_Decode(buffer,512, &info, (void**)&pcm_buffer, &samples_no);
+        Wave_DecodeFrameSegment(buffer,512, &info);
 
-        /*play the 8 bit samples*/
+        if(info.channels_no == 1)
+        {
+            if(info.bits_per_sample == 8)
+            {
+                for(samples_block_itr = 0 ; samples_block_itr < info.last_read_samples_block_no ; samples_block_itr++)
+                {
+                    ((tWave_RawPcmMono8BitSample*)info.pcm_buffer)[samples_block_itr];
+//                    Time_Delay_US(info.sample_period_us);
+                }
+            }
+            else
+            {
+                for(samples_block_itr = 0 ; samples_block_itr < info.last_read_samples_block_no ; samples_block_itr++)
+                {
+                    ((tWave_RawPcmMono16BitSample*)info.pcm_buffer)[samples_block_itr];
+                    Time_Delay_US(info.sample_period_us);
+                }
+            }
+        }
+        else
+        {
+            if(info.bits_per_sample == 8)
+            {
+                for(samples_block_itr = 0 ; samples_block_itr < info.last_read_samples_block_no ; samples_block_itr++)
+                {
+                    ((tWave_RawPcmStreo8BitSample*)info.pcm_buffer)[samples_block_itr].left_channel_val;
+                    ((tWave_RawPcmStreo8BitSample*)info.pcm_buffer)[samples_block_itr].right_channel_val;
+                    Time_Delay_US(info.sample_period_us);
+                }
+            }
+            else
+            {
+                for(samples_block_itr = 0 ; samples_block_itr < info.last_read_samples_block_no ; samples_block_itr++)
+                {
+                    ((tWave_RawPcmStreo16BitSample*)info.pcm_buffer)[samples_block_itr].left_channel_val;
+                    ((tWave_RawPcmStreo16BitSample*)info.pcm_buffer)[samples_block_itr].right_channel_val;
+                    Time_Delay_US(info.sample_period_us);
+                }
+            }
+        }
+
+        if(file_read_done)
+        {
+            break;
+        }
     }
 
     PWMGenDisable(PWM1_BASE, PWM_GEN_2);

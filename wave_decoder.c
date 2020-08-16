@@ -7,8 +7,24 @@
 
 #include "wave_decoder.h"
 #include "string.h"
+#include "math.h"
 
-/*Not used helper function*/
+typedef struct{
+    char chunk_id[4];           /*RIFF*/
+    uint32_t chunk_size;
+    char chunk_format[4];       /*WAVE*/
+    char sub_chunk1_id[4];      /*fmt */
+    uint32_t sub_chunk1_size;   /*16 for PCM*/
+    uint16_t audio_format;
+    uint16_t channels_no;
+    uint32_t sample_rate;
+    uint32_t byte_rate;
+    uint16_t block_align;
+    uint16_t bits_per_sample;   /*8 ,16 ,...*/
+    char sub_chunk2_id[4];      /*DATA*/
+    uint32_t sub_chunk2_size;
+}__attribute__((packed, aligned(1)))tWave_Frame;
+
 static void big_to_little_endian_in_place(uint8_t *start_byte_ptr,uint8_t bytes_no)
 {
     uint8_t itr;
@@ -21,20 +37,25 @@ static void big_to_little_endian_in_place(uint8_t *start_byte_ptr,uint8_t bytes_
     }
 }
 
-int8_t Wave_Decode(uint8_t *frame_block,uint32_t block_size,tWave_FrameInfo *info,void **pcm_buffer,uint32_t *samples_no)
+int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_size,tWave_DecodingInfo *info)
 {
     int8_t ret = -1;
-    static tWave_FrameInfo *in_progress_info_ref;
-    static uint32_t total_samples_no;
-    tWave_FrameInfo *found_frame_start;
-    uint32_t current_block_data_size;
+    tWave_Frame *found_frame_start;
 
     /*frame start*/
-    if(in_progress_info_ref != info) /*this check for same file info is not enough as it only compares the pointers not unique data*/
+    if(0 == info->total_samples_block_no)   /*this check for same file info is not enough as it only compares the pointers not unique data*/
     {
         /*Get frame start*/
-        if(found_frame_start = strstr((const char*)frame_block,"RIFF"))
+        if((found_frame_start = (tWave_Frame *)strstr((const char*)frame_segment,"RIFF")) ||
+                (found_frame_start = (tWave_Frame *)strstr((const char*)frame_segment,"RIFX")))
         {
+            if(strncmp((const char*)found_frame_start,"RIFX",4) == 0) /*big endianess scheme*/
+            {
+                big_to_little_endian_in_place((uint8_t *)found_frame_start->chunk_format,4);
+                big_to_little_endian_in_place((uint8_t *)found_frame_start->sub_chunk1_id,4);
+                big_to_little_endian_in_place((uint8_t *)found_frame_start->sub_chunk2_id,4);
+            }
+
             /*validation*/
             if(strncmp(found_frame_start->chunk_format,"WAVE",4) == 0 &&
                     strncmp(found_frame_start->sub_chunk1_id,"fmt ",4) == 0 &&
@@ -42,29 +63,34 @@ int8_t Wave_Decode(uint8_t *frame_block,uint32_t block_size,tWave_FrameInfo *inf
                     strncmp(found_frame_start->sub_chunk2_id,"data",4) == 0)
             {
                 ret = 0; /*valid*/
-                memcpy(info,found_frame_start,sizeof(tWave_FrameInfo));
-                in_progress_info_ref = info;
             }
 
             if(!ret)
             {
-                *pcm_buffer = (uint8_t*)info + sizeof(tWave_FrameInfo);
-                *samples_no = 0;
-                current_block_data_size = block_size - sizeof(tWave_FrameInfo);
-                *samples_no += current_block_data_size / sizeof(tWave_PcmFormat16Bit);
-                total_samples_no = info->sub_chunk2_size / sizeof(tWave_PcmFormat16Bit);
+                info->channels_no = found_frame_start->channels_no;
+                info->bits_per_sample = found_frame_start->bits_per_sample;
+                info->samples_block_size = found_frame_start->block_align;
+                info->sample_period_us = round(1000000.0 / found_frame_start->sample_rate);
+
+                info->pcm_buffer = (uint8_t*)found_frame_start + sizeof(tWave_Frame);
+                info->read_samples_block_no = 0;
+                info->read_samples_block_no += (frame_segment_size - sizeof(tWave_Frame)) / info->samples_block_size;
+                info->last_read_samples_block_no = info->read_samples_block_no;
+                info->total_samples_block_no = found_frame_start->sub_chunk2_size / info->samples_block_size;
             }
         }
     }
     else
     {
         /*remaining data*/
-        *pcm_buffer = frame_block;
-        *samples_no += block_size / sizeof(tWave_PcmFormat16Bit);
+        info->pcm_buffer = frame_segment;
+        info->last_read_samples_block_no = frame_segment_size / info->samples_block_size;
+        info->read_samples_block_no += info->last_read_samples_block_no;
 
-        if(*samples_no >= total_samples_no)
+        if(info->read_samples_block_no >= info->total_samples_block_no)
         {
-            in_progress_info_ref = 0;
+            info->last_read_samples_block_no = frame_segment_size - (info->read_samples_block_no - info->total_samples_block_no);
+            info->read_samples_block_no = info->total_samples_block_no;
             ret = 1;
         }
         else

@@ -30,6 +30,16 @@ void Time_Delay_MS(uint32_t delay_ms)
     TimerDisable(TIMER0_BASE, TIMER_BOTH);
 }
 
+
+void Time_Delay_US(uint32_t delay_us)
+{
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    TimerLoadSet(TIMER0_BASE,TIMER_BOTH,delay_us*1000);
+    TimerEnable(TIMER0_BASE, TIMER_BOTH);
+    while((TimerIntStatus(TIMER0_BASE,0) & TIMER_TIMA_TIMEOUT) == 0);
+    TimerDisable(TIMER0_BASE, TIMER_BOTH);
+}
+
 /**
     *@brief
     *@param void
