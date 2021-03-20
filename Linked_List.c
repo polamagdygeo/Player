@@ -10,14 +10,14 @@
 #include <stdlib.h>
 
 typedef struct tList_Node{
-	struct tList_Node* pNext;
-	struct tList_Node* pPrev;
+	struct tList_Node* p_next;
+	struct tList_Node* p_prev;
 	void* data;
 }tList_Node;
 
 struct list{
-	tList_Node* pTail;
-	tList_Node* pHead;
+	tList_Node* p_tail;
+	tList_Node* p_head;
 	uint8_t nodes_number;
 };
 
@@ -32,15 +32,15 @@ static tList_Node* List_GetNode(tList* list,uint8_t idx);
 */
 static tList_Node* List_CreateNode(tList* list,void* s)
 {
-	tList_Node* pN = calloc(1,sizeof(tList_Node));
-	if(pN!=0)
+	tList_Node* p_node = calloc(1,sizeof(tList_Node));
+	if(p_node!=0)
 	{
-		pN->data = s;
-		pN->pNext = 0;
-		pN->pPrev = 0;
+		p_node->data = s;
+		p_node->p_next = 0;
+		p_node->p_prev = 0;
 		list->nodes_number++;
 	}
-	return pN;
+	return p_node;
 }
 
 /**
@@ -51,7 +51,7 @@ static tList_Node* List_CreateNode(tList* list,void* s)
 static tList_Node* List_GetNode(tList* list,uint8_t idx)
 {
 	uint8_t i;
-	tList_Node* p_curr_node = list->pHead;
+	tList_Node* p_curr_node = list->p_head;
 
 	if(p_curr_node == 0)
 	{
@@ -60,9 +60,9 @@ static tList_Node* List_GetNode(tList* list,uint8_t idx)
 
 	for(i = 0 ; i < idx ; i++)
 	{
-		if(p_curr_node->pNext != 0)
+		if(p_curr_node->p_next != 0)
 		{
-			p_curr_node = p_curr_node->pNext;
+			p_curr_node = p_curr_node->p_next;
 		}
 		else
 		{
@@ -81,14 +81,14 @@ static tList_Node* List_GetNode(tList* list,uint8_t idx)
 */
 tList* List_Create(void)
 {
-	tList* pL = calloc(1,sizeof(tList));
-	if(pL!=0)
+	tList* p_list = calloc(1,sizeof(tList));
+	if(p_list!=0)
 	{
-		pL->pTail = 0;
-		pL->pHead = 0;
-		pL->nodes_number = 0;
+		p_list->p_tail = 0;
+		p_list->p_head = 0;
+		p_list->nodes_number = 0;
 	}
-	return pL;
+	return p_list;
 }
 
 /**
@@ -100,21 +100,21 @@ uint8_t List_Append(tList* list,void* s)
 {
 	uint8_t ret_val = 0;
 
-	tList_Node* pN = List_CreateNode(list,s);
+	tList_Node* p_node = List_CreateNode(list,s);
 
 	if(list != 0 &&
-		pN != 0)
+		p_node != 0)
 	{
-		if(list->pTail == 0)
+		if(list->p_tail == 0)
 		{
-			list->pTail = pN;
-			list->pHead = pN;
+			list->p_tail = p_node;
+			list->p_head = p_node;
 		}
 		else
 		{
-			pN->pPrev = list->pTail;
-			list->pTail->pNext = pN;
-			list->pTail = pN;
+			p_node->p_prev = list->p_tail;
+			list->p_tail->p_next = p_node;
+			list->p_tail = p_node;
 		}
 
 		ret_val = 1;
@@ -175,8 +175,8 @@ uint8_t List_Remove(tList* list,uint8_t idx)
 		list->nodes_number >= idx)
 	{
 		node = List_GetNode(list,idx);
-		node->pPrev->pNext = node->pNext;
-		node->pNext->pPrev = node->pPrev;
+		node->p_prev->p_next = node->p_next;
+		node->p_next->p_prev = node->p_prev;
 		d = node->data;
 		free(d);
 		free(node);
@@ -194,16 +194,16 @@ uint8_t List_Remove(tList* list,uint8_t idx)
 uint8_t List_Traverse(tList* list,pTravFunc p_trav_func,void *ptr_param,void **ptr_ptr_param)
 {
 	uint8_t i;
-	tList_Node* p_curr_node = list->pHead;
+	tList_Node* p_curr_node = list->p_head;
 	uint8_t isDone = 0;
 
 	for(i = 0 ; i < List_Count(list); i++)
 	{
 		isDone = p_trav_func(p_curr_node->data,ptr_param,ptr_ptr_param);
 
-		if(p_curr_node->pNext != 0 && isDone == 0)
+		if(p_curr_node->p_next != 0 && isDone == 0)
 		{
-			p_curr_node = p_curr_node->pNext;
+			p_curr_node = p_curr_node->p_next;
 		}
 		else
 		{

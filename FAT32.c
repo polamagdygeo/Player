@@ -18,7 +18,7 @@
 #define VOL_CONF_HIDDEN_SECT_OFFSET			28
 #define VOL_CONF_TOTAL_SECT_OFFSET			32
 
-#define MBR_PARTATION_TABLE_OFFSET			446
+#define MBR_PARTATION_TABLE_OFFSET			446		/*Master Boot Record partation table*/
 #define PARTATION_TABLE_ENTRY_SIZE			16
 #define MAX_PARTATION_TABLE_ENTRIES			4
 
@@ -68,7 +68,7 @@ typedef struct{
 	uint8_t last_mod_date[2];
 	uint16_t starting_cluster;
 	uint32_t file_size;
-}tSNFDirEntry;	/*in FAT32 standard directory entries are part of the data section in volume map*/
+}tSNFDirEntry;	/*Short name file ,in FAT32 standard directory entries are part of the data section in volume map*/
 
 typedef struct{
     uint8_t order;
@@ -79,7 +79,7 @@ typedef struct{
     uint16_t name_p2[6];
     uint16_t reserverd;
     uint16_t name_p3[2];
-}__attribute__((packed, aligned(1)))tLNFDirEntry;
+}__attribute__((packed, aligned(1)))tLNFDirEntry; /*Long name file*/
 
 struct tDirTreeNode;
 
@@ -99,7 +99,7 @@ typedef struct{
 	uint16_t reserved_area_sectors_no;
 	uint8_t sector_per_cluster;
 	uint8_t fat_table_entries_no;
-}tBPB_Info;
+}tBPB_Info; /*BIOS parameter block*/
 
 typedef struct{
 	uint8_t boot_flag;

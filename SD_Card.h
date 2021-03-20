@@ -12,7 +12,7 @@
 
 #define SD_BLOCK_SIZE 			(512U)
 
-void Sd_Init(void);
+int8_t Sd_Init(void);
 uint8_t Sd_ReadBlock(uint32_t data_block_addr,uint8_t* buffer);
 uint8_t Sd_WriteBlock(uint32_t data_block_addr,uint8_t* buffer);
 uint8_t Sd_ReadMultipleBlock(uint32_t data_block_addr,uint8_t blocks_number,uint8_t* buffer);

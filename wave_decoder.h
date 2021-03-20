@@ -13,12 +13,12 @@
 typedef struct{
     uint32_t sample_period_us;
     uint32_t total_samples_block_no;
-    uint32_t read_samples_block_no;
-    uint32_t last_read_samples_block_no;
+    uint32_t finished_blocks_of_samples_no;
+    uint32_t last_read_blocks_of_samples_no;
     void *pcm_buffer;
     uint8_t channels_no;
     uint8_t bits_per_sample;
-    uint8_t samples_block_size;
+    uint8_t block_of_samples_size;
 }tWave_DecodingInfo;
 
 typedef struct{
@@ -34,6 +34,6 @@ typedef struct{
 typedef int8_t  tWave_RawPcmMono16BitSample;
 typedef uint8_t tWave_RawPcmMono8BitSample;
 
-int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_size,tWave_DecodingInfo *info);
+int8_t Wave_DecodeFileSegment(const uint8_t *file_segment,uint32_t file_segment_size,tWave_DecodingInfo *info);
 
 #endif /* WAVE_DECODER_H_ */

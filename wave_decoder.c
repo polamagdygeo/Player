@@ -19,7 +19,7 @@ typedef struct{
     uint16_t channels_no;
     uint32_t sample_rate;
     uint32_t byte_rate;
-    uint16_t block_align;
+    uint16_t block_align;       /*samples block*/
     uint16_t bits_per_sample;   /*8 ,16 ,...*/
     char sub_chunk2_id[4];      /*DATA*/
     uint32_t sub_chunk2_size;
@@ -37,13 +37,13 @@ static void big_to_little_endian_in_place(uint8_t *start_byte_ptr,uint8_t bytes_
     }
 }
 
-int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_size,tWave_DecodingInfo *info)
+int8_t Wave_DecodeFileSegment(const uint8_t *file_segment,uint32_t file_segment_size,tWave_DecodingInfo *info)
 {
     int8_t ret = -1;
-    tWave_Frame *found_frame_start;
+    tWave_Frame *found_frame_start = 0;
 
     /*frame start*/
-    if(0 == info->total_samples_block_no)   /*this check for same file info is not enough as it only compares the pointers not unique data*/
+    if(0 == info->total_samples_block_no)   /*Check if the frame start of this wave file was parsed before or not*/
     {
         /*Get frame start*/
         if((found_frame_start = (tWave_Frame *)strstr((const char*)frame_segment,"RIFF")) ||
@@ -69,14 +69,13 @@ int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_siz
             {
                 info->channels_no = found_frame_start->channels_no;
                 info->bits_per_sample = found_frame_start->bits_per_sample;
-                info->samples_block_size = found_frame_start->block_align;
+                info->block_of_samples_size = found_frame_start->block_align;
                 info->sample_period_us = round(1000000.0 / found_frame_start->sample_rate);
 
                 info->pcm_buffer = (uint8_t*)found_frame_start + sizeof(tWave_Frame);
-                info->read_samples_block_no = 0;
-                info->read_samples_block_no += (frame_segment_size - sizeof(tWave_Frame)) / info->samples_block_size;
-                info->last_read_samples_block_no = info->read_samples_block_no;
-                info->total_samples_block_no = found_frame_start->sub_chunk2_size / info->samples_block_size;
+                info->finished_blocks_of_samples_no = (frame_segment_size - sizeof(tWave_Frame)) / info->block_of_samples_size;
+                info->last_read_blocks_of_samples_no = info->finished_blocks_of_samples_no;
+                info->total_samples_block_no = found_frame_start->sub_chunk2_size / info->block_of_samples_size;
             }
         }
     }
@@ -84,13 +83,13 @@ int8_t Wave_DecodeFrameSegment(uint8_t *frame_segment,uint32_t frame_segment_siz
     {
         /*remaining data*/
         info->pcm_buffer = frame_segment;
-        info->last_read_samples_block_no = frame_segment_size / info->samples_block_size;
-        info->read_samples_block_no += info->last_read_samples_block_no;
+        info->last_read_blocks_of_samples_no = frame_segment_size / info->block_of_samples_size;
+        info->finished_blocks_of_samples_no += info->last_read_blocks_of_samples_no;
 
-        if(info->read_samples_block_no >= info->total_samples_block_no)
+        if(info->finished_blocks_of_samples_no >= info->total_samples_block_no)
         {
-            info->last_read_samples_block_no = frame_segment_size - (info->read_samples_block_no - info->total_samples_block_no);
-            info->read_samples_block_no = info->total_samples_block_no;
+            info->last_read_blocks_of_samples_no = frame_segment_size - (info->finished_blocks_of_samples_no - info->total_samples_block_no);
+            info->finished_blocks_of_samples_no = info->total_samples_block_no;
             ret = 1;
         }
         else
