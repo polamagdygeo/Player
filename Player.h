@@ -1,5 +1,5 @@
 /*
- * Mp3Player.h
+ * Player.h
  *
  *  Created on: Jul 18, 2020
  *      Author: pola
@@ -8,7 +8,7 @@
 #ifndef PLAYER_H_
 #define PLAYER_H_
 
-void Mp3Player_Init(void);
-void Mp3Player_Update(void);
+void MusicPlayer_Init(void);
+void MusicPlayer_Update(void);
 
 #endif /* PLAYER_H_ */
